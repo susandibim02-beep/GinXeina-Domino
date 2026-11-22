@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GinXeina Domino</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: radial-gradient(circle, #1b4d3e 0%, #0d2b22 100%); color: #f4f4f4; text-align: center; padding: 20px; margin: 0; min-height: 100vh; }
+    h1 { color: #ffd700; text-shadow: 2px 2px 4px rgba(0,0,0,0.6); letter-spacing: 2px; margin-bottom: 5px; }
+    .subtitle { color: #a3c9bc; font-size: 14px; margin-bottom: 20px; }
+    .board { background: rgba(0, 0, 0, 0.35); border: 2px solid #2e7d63; padding: 25px; min-height: 90px; border-radius: 15px; margin: 20px auto; max-width: 900px; display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); }
+    .card { background: #fffdf7; color: #111; padding: 12px 16px; border-radius: 8px; font-weight: bold; font-size: 20px; border: 2px solid #d4af37; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transition: transform 0.15s; }
+    .card:hover { transform: translateY(-5px); background: #fff3b0; }
+    .hand { display: flex; justify-content: center; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+    select, button { padding: 10px 18px; font-size: 16px; border-radius: 8px; border: none; font-weight: bold; }
+    select { background: #fff; color: #111; margin-left: 5px; }
+    button { background: #d4af37; color: #111; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    button:hover:not(:disabled) { background: #f1c40f; }
+    button:disabled { background: #555; color: #999; cursor: not-allowed; }
+    .status-box { background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; display: inline-block; padding: 8px 20px; border-radius: 20px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>♠️ GINXEINA DOMINO ♠️</h1>
+  <div class="subtitle" id="players">Menunggu pemain bergabung...</div>
+  
+  <div class="status-box">
+    <span id="status">Menunggu minimal 2 pemain di meja...</span>
+  </div>
+
+  <div style="margin-top: 10px;">
+    <label>Sisi peletakan kartu:</label>
+    <select id="side">
+      <option value="right">Kanan ➔</option>
+      <option value="left">⬅ Kiri</option>
+    </select>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <h3>Kartu Anda:</h3>
+  <div class="hand" id="hand"></div>
+  <br>
+  <button id="passBtn" onclick="passTurn()" disabled>Lewat Giliran (Pass)</button>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let myTurn = false;
+
+    socket.on('updatePlayers', (names) => {
+      document.getElementById('players').innerText = 'Pemain aktif: ' + names.join(' • ');
+    });
+
+    socket.on('message', (msg) => {
+      document.getElementById('status').innerText = msg;
+    });
+
+    socket.on('yourHand', (hand) => {
+      const handDiv = document.getElementById('hand');
+      handDiv.innerHTML = '';
+      hand.forEach((card, index) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card';
+        cardEl.innerText = `[ ${card[0]} | ${card[1]} ]`;
+        cardEl.onclick = () => {
+          if (!myTurn) return alert('Tunggu giliran Anda!');
+          const side = document.getElementById('side').value;
+          socket.emit('playCard', { cardIndex: index, side });
+        };
+        handDiv.appendChild(cardEl);
+      });
+    });
+
+    socket.on('gameState', ({ board, turn }) => {
+      myTurn = (socket.id === turn);
+      document.getElementById('passBtn').disabled = !myTurn;
+
+      const boardDiv = document.getElementById('board');
+      boardDiv.innerHTML = '';
+      board.forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card';
+        cardEl.style.cursor = 'default';
+        cardEl.innerText = `[${card[0]}|${card[1]}]`;
+        boardDiv.appendChild(cardEl);
+      });
+    });
+
+    function passTurn() {
+      socket.emit('passTurn');
+    }
+  </script>
+</body>
+</html>
